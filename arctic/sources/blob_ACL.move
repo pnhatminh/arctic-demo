@@ -12,6 +12,7 @@ const ENoAccess: u64 = 1;
 public struct AccessControlList has key {
     id: UID,
     blob_id: String,
+    serviceName: String,
     owner: address,
     allowList: vector<address>,
 }
@@ -29,6 +30,7 @@ public struct Cap has key {
 public fun create_access_control(
     ctx: &mut TxContext,
     blob_id: String,
+    serviceName: String,
     allowed_addrs: vector<address>
 ): Cap {
     let ac = AccessControlList {
@@ -36,6 +38,7 @@ public fun create_access_control(
         blob_id:    blob_id,
         owner:      ctx.sender(),
         allowList:  allowed_addrs,
+        serviceName: serviceName,
     };
     let cap = Cap {
         id: object::new(ctx),
