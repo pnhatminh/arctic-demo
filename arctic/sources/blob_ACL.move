@@ -56,12 +56,10 @@ public fun add_access(acl: &mut AccessControlList, cap: &Cap, account: address) 
 }
 
 public fun has_access(acl: &AccessControlList, acl_id: vector<u8>, caller: address): bool {
-    let namespace_acl = acl.id.to_bytes();
-    if (!is_prefix(namespace_acl, acl_id)) {
-        return false
+    if (acl.owner == caller || acl.allow_list.contains(&caller)) {
+        return true
     };
-
-    acl.allow_list.contains(&caller)
+    return false
 }
 
 public fun publish(acl: &mut AccessControlList, cap: &Cap, blob_id: String) {

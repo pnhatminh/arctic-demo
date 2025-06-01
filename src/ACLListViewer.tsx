@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button, Card } from '@radix-ui/themes';
 import { usePackageId } from "./hooks/usePackageId";
 import CreateACL from "./CreateACL";
+import { set } from "idb-keyval";
 
 interface ACLListViewerProps {
   suiClient: SuiClient;
@@ -24,10 +25,11 @@ const ACLListViewer = ({ suiClient }: ACLListViewerProps) => {
   const account = useCurrentAccount();
   const [cardItems, setCardItems] = useState<CardItem[]>([]);
   const [showCreateACL, setShowCreateACL] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const packageId = usePackageId();
   const getCapObj = useCallback(async () => {
     if (!account?.address) return;
-
+    setIsLoading(true);
     const res = await suiClient.getOwnedObjects({
       owner: account?.address,
       options: {
@@ -64,6 +66,7 @@ const ACLListViewer = ({ suiClient }: ACLListViewerProps) => {
       })
     );
     setCardItems(cardItems);
+    setIsLoading(false);
   }, [account?.address]);
 
   useEffect(() => {
@@ -71,13 +74,14 @@ const ACLListViewer = ({ suiClient }: ACLListViewerProps) => {
   }, [getCapObj]);
   return (
     <>
-      {cardItems.length === 0 && (
+      {isLoading && <p>Loading ACLs...</p>}
+      {!isLoading && cardItems.length === 0 && (
         <p>No ACLs found for this account.</p>
       )}
       <Button onClick={() => setShowCreateACL(true)}>Create new ACL</Button>
       {showCreateACL && <CreateACL suiClient={suiClient}/>}
       {cardItems.map((item) => (
-        <Card key={`${item.cap_id} - ${item.acl_id}`}>
+        <Card variant="surface" key={`${item.cap_id} - ${item.acl_id}`}>
           <p>
             ID {item.acl_id}
           </p>

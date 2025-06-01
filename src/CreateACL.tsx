@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { Button, Card, Flex, Spinner } from "@radix-ui/themes";
-import { set } from "idb-keyval";
 
 interface CreateACLProps {
   suiClient: SuiClient;

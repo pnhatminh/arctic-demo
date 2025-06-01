@@ -1,26 +1,27 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import {
-    EncryptedObject,
+  EncryptedObject,
   getAllowlistedKeyServers,
   NoAccessError,
   SealClient,
   SessionKey,
   type SealCompatibleClient,
-  type SessionKeyType,
 } from "@mysten/seal";
 import type { SuiClient } from "@mysten/sui/client";
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
 import { Transaction } from "@mysten/sui/transactions";
 import { fromHex } from "@mysten/sui/utils";
-import { get, set } from "idb-keyval";
-import { useEffect, useState } from "react";
+import { set } from "idb-keyval";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { usePackageId } from "./hooks/usePackageId";
 import type { MoveCallConstructor } from "./utils/utils";
 import { WalrusClient } from "@mysten/walrus";
 import walrusWasmUrl from "@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url";
 import { useSignPersonalMessage } from "@mysten/dapp-kit";
-import { Spinner } from "@radix-ui/themes";
+import { Button, Spinner } from "@radix-ui/themes";
+import { LoginForm } from "./LoginForm";
+import type { Cap } from "./ACLListViewer";
 
 interface ACLItemViewerProps {
   suiClient: SuiClient;
@@ -30,16 +31,19 @@ export interface ACLItemData {
   allowlistId: string;
   allowlistName: string;
   blobId: string;
+  owner: string;
 }
 
-function constructMoveCall(
+function constructSealApproveCall(
   packageId: string,
   allowlistId: string
 ): MoveCallConstructor {
   return (tx: Transaction, id: string) => {
+    console.log(`constructMoveCall id ${id}`)
+    console.log(`allowlistId ${allowlistId}`)
     tx.moveCall({
-      target: `${packageId}::allowlist::seal_approve`,
-      arguments: [tx.pure.vector("u8", fromHex(id)), tx.object(allowlistId)],
+      target: `${packageId}::access_control::seal_approve`,
+      arguments: [tx.pure.vector("u8", fromHex(`0x${id}`)), tx.object(allowlistId)],
     });
   };
 }
@@ -49,12 +53,14 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
   const { id } = useParams();
   const currentAccount = useCurrentAccount();
   const [data, setData] = useState<ACLItemData>();
-  const allowerListedKeyServers: string[] = getAllowlistedKeyServers("testnet");
   const [error, setError] = useState<string | null>(null);
   const [walrusClient, setWalrusClient] = useState<WalrusClient | null>(null);
   const [decryptedData, setDecryptedData] = useState<Uint8Array | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isDecrypting, setIsDecrypting] = useState<boolean>(false);
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
+  const [showLoginForm, setShowLoginForm] = useState(false);
+  const [capId, setCapId] = useState<string | null>(null);
 
   const seal = new SealClient({
     suiClient: suiClient as unknown as SealCompatibleClient,
@@ -76,8 +82,8 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
     setWalrusClient(wc);
   }, []);
 
-  async function getData() {
-    setIsLoading(true)
+  async function getACLObj() {
+    setIsLoading(true);
     const allowlist = await suiClient.getObject({
       id: id!,
       options: { showContent: true },
@@ -94,16 +100,46 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
       allowlistId: id!,
       allowlistName: fields?.name,
       blobId: encryptedObjects[0] || "",
+      owner: fields?.owner,
     };
     setData(feedData);
     setIsLoading(false);
   }
+
+  const getCapObj = useCallback(async () => {
+    if (!currentAccount?.address) return;
+    setIsLoading(true);
+    const res = await suiClient.getOwnedObjects({
+      owner: currentAccount?.address,
+      options: {
+        showContent: true,
+        showType: true,
+      },
+      filter: {
+        StructType: `${packageId}::access_control::Cap`,
+      },
+    });
+    console.log(res.data);
+    const [cap] = res.data
+      .map((obj) => {
+        const fields = (obj!.data!.content as { fields: any }).fields;
+        return {
+          id: fields?.id.id,
+          acl_id: fields?.acl_id,
+        };
+      })
+      .filter(
+        (item) => item !== null && item.acl_id === id
+      ) as unknown as Cap[];
+    setCapId(cap?.id || null);
+  }, [currentAccount?.address]);
 
   const onView = async (blob_id: string, acl_id: string) => {
     if (!walrusClient) {
       console.error("Walrus client is not initialized");
       return;
     }
+    setIsDecrypting(true);
     // const imported: SessionKeyType | undefined = await get("sessionKey");
 
     // if (imported) {
@@ -143,11 +179,13 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
         {
           onSuccess: async (result: { signature: string }) => {
             await sessionKey.setPersonalMessageSignature(result.signature);
-            const moveCallConstructor = await constructMoveCall(
+            const moveCallConstructor = constructSealApproveCall(
               packageId,
               acl_id
             );
-            const encryptedData = await walrusClient.readBlob({ blobId: blob_id });
+            const encryptedData = await walrusClient.readBlob({
+              blobId: blob_id,
+            });
             if (!encryptedData || encryptedData.length === 0) {
               setError("Blob not found or empty");
               return;
@@ -156,11 +194,16 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
               new Uint8Array(encryptedData)
             ).id;
             const tx = new Transaction();
+            console.log("fullId", fullId);
+            console.log("tx", tx);
+            
             moveCallConstructor(tx, fullId);
             const txBytes = await tx.build({
               client: suiClient,
               onlyTransactionKind: true,
             });
+            await seal.fetchKeys({ ids: [fullId], txBytes, sessionKey, threshold: 1 });
+            
             try {
               // Note that all keys are fetched above, so this only local decryption is done
               const decryptedData = await seal.decrypt({
@@ -178,6 +221,8 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
               console.error(errorMsg, err);
               setError(errorMsg);
               return;
+            } finally {
+              setIsDecrypting(false);
             }
             set("sessionKey", sessionKey.export());
           },
@@ -189,25 +234,53 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
   };
 
   useEffect(() => {
-    getData();
+    init();
   }, [id, suiClient, packageId]);
+
+  const init = async () => {
+    setIsLoading(true);
+    await getACLObj();
+    await getCapObj();
+    setIsLoading(false);
+  };
 
   return (
     <>
-      {!currentAccount && <span>Please connect to wallet to view this shared password</span>}
-      {isLoading && <p><Spinner/>Loading...</p>}
-      {currentAccount && data && (
+      {!currentAccount && (
+        <span>Please connect to wallet to view this shared password</span>
+      )}
+      {isLoading && (
+        <p>
+          <Spinner />
+          Loading...
+        </p>
+      )}
+      {currentAccount && id && data && (
         <div>
           <h2>Allowlist: {data.allowlistName}</h2>
           <p>Allowlist ID: {data.allowlistId}</p>
           <p>Blob ID: {data.blobId}</p>
-          {data.blobId && <button
-            onClick={() => onView(data.blobId, data.allowlistId)}
-            disabled={!walrusClient}
-          >
-            View password
-          </button>}
+          <p>Owner: {data.owner}</p>
+          {data.blobId && (
+            <button
+              onClick={() => onView(data.blobId, data.allowlistId)}
+              disabled={!walrusClient}
+            >
+              View password
+            </button>
+          )}
+          {currentAccount.address === data.owner && !data.blobId && (
+            <Button onClick={() => setShowLoginForm(true)}>Add Password</Button>
+          )}
           {!data.blobId && <p>No password found for this allowlist.</p>}
+          {showLoginForm && capId && (
+            <LoginForm
+              suiClient={suiClient}
+              acl_id={data.allowlistId}
+              cap_id={capId}
+            />
+          )}
+          {isDecrypting && <p>Decrypting...<Spinner /></p>}
           {decryptedData && (
             <div>
               <h3>Decrypted Data:</h3>
@@ -218,7 +291,7 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
         </div>
       )}
     </>
-  )
+  );
 };
 
 export default ACLItemViewer;

@@ -9,32 +9,34 @@ import { SuiClient } from "@mysten/sui/client";
 import { WalrusClient } from "@mysten/walrus";
 import walrusWasmUrl from "@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url";
 import React, { useEffect, useState, type FormEvent } from "react";
+import { usePackageId } from "./hooks/usePackageId";
+import { Transaction } from "@mysten/sui/transactions";
+import { Button } from "@radix-ui/themes";
 
 interface LoginFormProps {
-  packageId: string
-  policyIdHex: string;
-  threshold: number;
+  acl_id: string;
   suiClient: SuiClient;
+  cap_id: string; // Optional, used for publishing
 }
 
 export const LoginForm: React.FC<LoginFormProps> = (
   {
-    packageId,
-    policyIdHex,
+    acl_id,
     suiClient,
-    // threshold,
+    cap_id
   }
 ) => {
-  const [serviceName, setServiceName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [sealClient, setSealClient] = useState<SealClient | null>(null);
   const [walrusClient, setWalrusClient] = useState<WalrusClient | null>(null);
+  const [showPublish, setShowPublish] = useState(false);
   const currentAccount = useCurrentAccount();
   const { mutateAsync: signTransactionBlock } = useSignTransaction();
   const { mutateAsync: signAndExecuteTransaction } =
     useSignAndExecuteTransaction();
+  const packageId = usePackageId();
 
   useEffect(() => {
     (async () => {
@@ -166,6 +168,18 @@ export const LoginForm: React.FC<LoginFormProps> = (
     return encoded.blobId;
   };
 
+  const { mutate: signAndExecute } = useSignAndExecuteTransaction({
+    execute: async ({ bytes, signature }) =>
+      await suiClient.executeTransactionBlock({
+        transactionBlock: bytes,
+        signature,
+        options: {
+          showRawEffects: true,
+          showEffects: true,
+        },
+      }),
+  });
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setStatus("🔒 Encrypting credentials…");
@@ -180,9 +194,9 @@ export const LoginForm: React.FC<LoginFormProps> = (
       const plainBytes = encoder.encode(plainJSON);
 
       const pkgHex = packageId.startsWith("0x") ? packageId : `0x${packageId}`;
-      const policyHex = policyIdHex.startsWith("0x")
-        ? policyIdHex
-        : `0x${policyIdHex}`;
+      const policyHex = acl_id.startsWith("0x")
+        ? acl_id
+        : `0x${acl_id}`;
 
       const { encryptedObject } = await sealClient.encrypt({
         threshold: 2,
@@ -198,12 +212,13 @@ export const LoginForm: React.FC<LoginFormProps> = (
       );
 
       const blobId = await writeFromWallet(
-        plainBytes,
+        encryptedObject,
         suiClient,
         walrusClient,
         currentAccount
       );
 
+      handlePublish(acl_id, cap_id, blobId);
       setStatus((prev) =>
         prev
           ? prev + `\n✅ Uploaded! Blob ID: ${blobId}`
@@ -217,6 +232,27 @@ export const LoginForm: React.FC<LoginFormProps> = (
     }
   }
 
+  async function handlePublish(acl_id: string, cap_id: string, blob_id: string) {
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${packageId}::access_control::publish`,
+      arguments: [tx.object(acl_id), tx.object(cap_id), tx.pure.string(blob_id)],
+    });
+
+    tx.setGasBudget(10000000);
+    signAndExecute(
+      {
+        transaction: tx,
+      },
+      {
+        onSuccess: async (result) => {
+          console.log('res', result);
+          alert('Blob attached successfully, now share the link or upload more.');
+        },
+      },
+    );
+  }
+
   return (
     <div className="max-w-md mx-auto mt-12 p-6 bg-white shadow-lg rounded-xl">
       <h2 className="text-2xl font-semibold text-center text-gray-800 mb-6">
@@ -225,29 +261,6 @@ export const LoginForm: React.FC<LoginFormProps> = (
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label
-            htmlFor="serviceName"
-            className="block text-gray-700 font-medium mb-1"
-          >
-            Service Name
-          </label>
-          <input
-            id="serviceName"
-            type="text"
-            value={serviceName}
-            onChange={(e) => setServiceName(e.target.value)}
-            required
-            disabled={!currentAccount || !sealClient || !walrusClient}
-            className={`
-              w-full px-4 py-2 border border-gray-300 rounded-lg
-              focus:outline-none focus:ring-2 focus:ring-blue-400
-              ${
-                !currentAccount || !sealClient || !walrusClient
-                  ? "bg-gray-100 cursor-not-allowed"
-                  : "bg-white"
-              }
-            `}
-          />
           <label
             htmlFor="username"
             className="block text-gray-700 font-medium mb-1"
