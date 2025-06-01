@@ -4,22 +4,24 @@ import {
   useSignAndExecuteTransaction,
   useSignTransaction,
 } from "@mysten/dapp-kit";
-import { getAllowlistedKeyServers, SealClient, type KeyServerConfig, type SealCompatibleClient } from "@mysten/seal";
-import { getFullnodeUrl, SuiClient } from "@mysten/sui/client";
+import { getAllowlistedKeyServers, SealClient, type SealCompatibleClient } from "@mysten/seal";
+import { SuiClient } from "@mysten/sui/client";
 import { WalrusClient } from "@mysten/walrus";
 import walrusWasmUrl from "@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url";
 import React, { useEffect, useState, type FormEvent } from "react";
 
 interface LoginFormProps {
-  packageId: string;
+  packageId: string
   policyIdHex: string;
   threshold: number;
+  suiClient: SuiClient;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = (
   {
-    // packageId,
-    // policyIdHex,
+    packageId,
+    policyIdHex,
+    suiClient,
     // threshold,
   }
 ) => {
@@ -33,19 +35,13 @@ export const LoginForm: React.FC<LoginFormProps> = (
   const { mutateAsync: signTransactionBlock } = useSignTransaction();
   const { mutateAsync: signAndExecuteTransaction } =
     useSignAndExecuteTransaction();
-const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
 
   useEffect(() => {
     (async () => {
       try {
-        const allowlistedIds: string[] = getAllowlistedKeyServers("testnet");
-        const serverConfigs: KeyServerConfig[] = allowlistedIds.map(id => ({
-          objectId: id,
-          weight: 1
-        }));
         const sc = new SealClient({
           suiClient: suiClient as unknown as SealCompatibleClient,
-          serverConfigs,
+          serverObjectIds: getAllowlistedKeyServers('testnet').map(id => [id, 1] as [string, number]),
           verifyKeyServers: false,
         });
         setSealClient(sc);
@@ -183,17 +179,17 @@ const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
       const encoder = new TextEncoder();
       const plainBytes = encoder.encode(plainJSON);
 
-      // const pkgHex = packageId.startsWith("0x") ? packageId : `0x${packageId}`;
-      // const policyHex = policyIdHex.startsWith("0x")
-      //   ? policyIdHex
-      //   : `0x${policyIdHex}`;
+      const pkgHex = packageId.startsWith("0x") ? packageId : `0x${packageId}`;
+      const policyHex = policyIdHex.startsWith("0x")
+        ? policyIdHex
+        : `0x${policyIdHex}`;
 
-      // const { encryptedObject } = await sealClient.encrypt({
-      //   threshold,
-      //   packageId: pkgHex,
-      //   id: policyHex,
-      //   data: plainBytes,
-      // });
+      const { encryptedObject } = await sealClient.encrypt({
+        threshold: 2,
+        packageId: pkgHex,
+        id: policyHex,
+        data: plainBytes,
+      });
 
       setStatus((prev) =>
         prev
