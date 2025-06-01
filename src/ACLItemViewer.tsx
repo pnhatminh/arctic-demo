@@ -1,4 +1,4 @@
-import { useCurrentAccount } from "@mysten/dapp-kit";
+import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import {
   EncryptedObject,
   getAllowlistedKeyServers,
@@ -39,11 +39,14 @@ function constructSealApproveCall(
   allowlistId: string
 ): MoveCallConstructor {
   return (tx: Transaction, id: string) => {
-    console.log(`constructMoveCall id ${id}`)
-    console.log(`allowlistId ${allowlistId}`)
+    console.log(`constructMoveCall id ${id}`);
+    console.log(`allowlistId ${allowlistId}`);
     tx.moveCall({
       target: `${packageId}::access_control::seal_approve`,
-      arguments: [tx.pure.vector("u8", fromHex(`0x${id}`)), tx.object(allowlistId)],
+      arguments: [
+        tx.pure.vector("u8", fromHex(`0x${id}`)),
+        tx.object(allowlistId),
+      ],
     });
   };
 }
@@ -61,7 +64,12 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [capId, setCapId] = useState<string | null>(null);
-
+  const [showAddAddress, setShowAddAddress] = useState(false);
+  const [address, setAddress] = useState("");
+  const [addAddressSuccess, setAddAddressSuccess] = useState<string | null>(null);
+const { mutateAsync: signAndExecuteTransaction } =
+    useSignAndExecuteTransaction();
+    
   const seal = new SealClient({
     suiClient: suiClient as unknown as SealCompatibleClient,
     serverObjectIds: getAllowlistedKeyServers("testnet").map(
@@ -131,7 +139,7 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
       .filter(
         (item) => item !== null && item.acl_id === id
       ) as unknown as Cap[];
-    setCapId(cap?.id || null);
+    setCapId(cap?.id);
   }, [currentAccount?.address]);
 
   const onView = async (blob_id: string, acl_id: string) => {
@@ -196,14 +204,19 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
             const tx = new Transaction();
             console.log("fullId", fullId);
             console.log("tx", tx);
-            
+
             moveCallConstructor(tx, fullId);
             const txBytes = await tx.build({
               client: suiClient,
               onlyTransactionKind: true,
             });
-            await seal.fetchKeys({ ids: [fullId], txBytes, sessionKey, threshold: 1 });
-            
+            await seal.fetchKeys({
+              ids: [fullId],
+              txBytes,
+              sessionKey,
+              threshold: 1,
+            });
+
             try {
               // Note that all keys are fetched above, so this only local decryption is done
               const decryptedData = await seal.decrypt({
@@ -233,9 +246,37 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
     }
   };
 
+  const onUpdateAddressPermission = async (acl_id: string, cap_id: string) => {
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${packageId}::access_control::add_access`,
+      arguments: [
+        tx.object(acl_id),
+        tx.object(cap_id),
+        tx.pure.string(address),
+      ],
+    });
+    tx.setGasBudget(100_000_000);
+    tx.setSender(currentAccount!.address);
+    const { digest } = await signAndExecuteTransaction({
+      transaction: tx as any,
+    });
+    const { effects } = await suiClient.waitForTransaction({
+      digest,
+      options: { showObjectChanges: true, showEffects: true },
+    });
+    if (effects?.status.status === "success") {
+      setAddAddressSuccess("Successfully added address to allowlist");
+    }
+  }
+
   useEffect(() => {
     init();
   }, [id, suiClient, packageId]);
+  
+  useEffect(() => {
+    console.log(showAddAddress, capId, showAddAddress && capId);
+  } , [showAddAddress, capId]);
 
   const init = async () => {
     setIsLoading(true);
@@ -269,10 +310,38 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
               View password
             </button>
           )}
+          {currentAccount.address === data.owner && (
+            <Button onClick={() => setShowAddAddress(true)}>Add access</Button>
+          )}
           {currentAccount.address === data.owner && !data.blobId && (
             <Button onClick={() => setShowLoginForm(true)}>Add Password</Button>
           )}
           {!data.blobId && <p>No password found for this allowlist.</p>}
+          {showAddAddress && capId && (
+            <>
+              <label
+                htmlFor="username"
+                className="block text-gray-700 font-medium mb-1"
+              >
+                Address
+              </label>
+              <input
+                id="username"
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                required
+                className={`
+              w-full px-4 py-2 border border-gray-300 rounded-lg
+              focus:outline-none focus:ring-2 focus:ring-blue-400
+            `}
+              />
+              <Button onClick={() => onUpdateAddressPermission(data.allowlistId, capId)}>Update Address Permission</Button>
+              {addAddressSuccess && (
+                <p style={{ color: "green" }}>{addAddressSuccess}</p>
+              )}
+            </>
+          )}
           {showLoginForm && capId && (
             <LoginForm
               suiClient={suiClient}
@@ -280,7 +349,12 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
               cap_id={capId}
             />
           )}
-          {isDecrypting && <p>Decrypting...<Spinner /></p>}
+          {isDecrypting && (
+            <p>
+              Decrypting...
+              <Spinner />
+            </p>
+          )}
           {decryptedData && (
             <div>
               <h3>Decrypted Data:</h3>

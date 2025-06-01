@@ -25,6 +25,7 @@ const ACLListViewer = ({ suiClient }: ACLListViewerProps) => {
   const [cardItems, setCardItems] = useState<CardItem[]>([]);
   const [showCreateACL, setShowCreateACL] = useState(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [finishedAddACL, setFinishedAddACL] = useState<boolean>(false);
   const packageId = usePackageId();
   const getCapObj = useCallback(async () => {
     if (!account?.address) return;
@@ -70,7 +71,7 @@ const ACLListViewer = ({ suiClient }: ACLListViewerProps) => {
 
   useEffect(() => {
     getCapObj();
-  }, [getCapObj]);
+  }, [getCapObj, finishedAddACL]);
   return (
     <>
       {isLoading && <p>Loading ACLs...</p>}
@@ -78,7 +79,7 @@ const ACLListViewer = ({ suiClient }: ACLListViewerProps) => {
         <p>No ACLs found for this account.</p>
       )}
       <Button onClick={() => setShowCreateACL(true)}>Create new ACL</Button>
-      {showCreateACL && <CreateACL suiClient={suiClient}/>}
+      {showCreateACL && <CreateACL setFinishedAddACL={setFinishedAddACL} suiClient={suiClient}/>}
       {cardItems.map((item) => (
         <Card variant="surface" key={`${item.cap_id} - ${item.acl_id}`}>
           <p>

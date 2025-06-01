@@ -1,15 +1,16 @@
 import type { SuiClient } from "@mysten/sui/client";
 import { usePackageId } from "./hooks/usePackageId";
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { Button, Card, Flex, Spinner } from "@radix-ui/themes";
 
 interface CreateACLProps {
   suiClient: SuiClient;
+  setFinishedAddACL: Dispatch<SetStateAction<boolean>>;
 }
 
-const CreateACL = ({ suiClient }: CreateACLProps) => {
+const CreateACL = ({ suiClient, setFinishedAddACL }: CreateACLProps) => {
   const packageId = usePackageId();
   const [serviceName, setServiceName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -72,6 +73,7 @@ const CreateACL = ({ suiClient }: CreateACLProps) => {
         },
         onSettled: () => {
           setIsCreating(false);
+          setFinishedAddACL(true);
         },
       }
     );
