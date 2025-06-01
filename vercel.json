@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/acl/:id*", "destination": "/" },
+    { "source": "/(.*)",       "destination": "/" }
+  ]
+}
