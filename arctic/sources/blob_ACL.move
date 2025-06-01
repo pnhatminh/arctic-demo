@@ -6,7 +6,8 @@ use arctic::utils::is_prefix;
 // ─── Error Codes ─────────────────────────────────────────────────────────────
 const ENoAccess: u64 = 0;
 const EInvalidCap: u64 = 1;
-const MARKER: u64 = 2;
+const EDuplicate: u64 = 1;
+const MARKER: u64 = 3;
 
 // ─── Resource Definition ─────────────────────────────────────────────────────
 //
@@ -47,6 +48,12 @@ public fun create_access_control(
     };
     transfer::share_object(ac);
     cap
+}
+
+public fun add_access(acl: &mut AccessControlList, cap: &Cap, account: address) {
+    assert!(cap.acl_id == object::id(acl), EInvalidCap);
+    assert!(!acl.allow_list.contains(&account), EDuplicate);
+    acl.allow_list.push_back(account);
 }
 
 public fun has_access(acl: &AccessControlList, acl_id: vector<u8>, caller: address): bool {
