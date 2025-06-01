@@ -106,7 +106,7 @@ const { mutateAsync: signAndExecuteTransaction } =
     const fields = (allowlist.data?.content as { fields: any })?.fields || {};
     const feedData = {
       allowlistId: id!,
-      allowlistName: fields?.name,
+      allowlistName: fields?.service_name,
       allowlist: fields?.allow_list,
       blobId: encryptedObjects[0] || "",
       owner: fields?.owner,
@@ -350,6 +350,7 @@ const { mutateAsync: signAndExecuteTransaction } =
               suiClient={suiClient}
               acl_id={data.allowlistId}
               cap_id={capId}
+              init={init}
             />
           )}
           {isDecrypting && (

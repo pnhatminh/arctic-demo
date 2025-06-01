@@ -16,13 +16,15 @@ interface LoginFormProps {
   acl_id: string;
   suiClient: SuiClient;
   cap_id: string; // Optional, used for publishing
+  init: () => void
 }
 
 export const LoginForm: React.FC<LoginFormProps> = (
   {
     acl_id,
     suiClient,
-    cap_id
+    cap_id,
+    init
   }
 ) => {
   const [username, setUsername] = useState("");
@@ -217,6 +219,7 @@ export const LoginForm: React.FC<LoginFormProps> = (
       );
 
       handlePublish(acl_id, cap_id, blobId);
+      init();
       setStatus((prev) =>
         prev
           ? prev + `\n✅ Uploaded! Blob ID: ${blobId}`
