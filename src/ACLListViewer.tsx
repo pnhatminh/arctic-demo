@@ -2,9 +2,10 @@ import { useCurrentAccount } from "@mysten/dapp-kit";
 import type { SuiClient } from "@mysten/sui/client";
 import { useCallback, useEffect, useState } from "react";
 import { Button, Card } from '@radix-ui/themes';
+import { usePackageId } from "./hooks/usePackageId";
+import CreateACL from "./CreateACL";
 
 interface ACLListViewerProps {
-  packageId: string;
   suiClient: SuiClient;
 }
 
@@ -20,10 +21,11 @@ export interface CardItem {
   name: string;
 }
 
-const ACLListViewer = ({ packageId, suiClient }: ACLListViewerProps) => {
+const ACLListViewer = ({ suiClient }: ACLListViewerProps) => {
   const account = useCurrentAccount();
   const [cardItems, setCardItems] = useState<CardItem[]>([]);
-
+  const [showCreateACL, setShowCreateACL] = useState(false);
+  const packageId = usePackageId();
   const getCapObj = useCallback(async () => {
     if (!account?.address) return;
 
@@ -70,6 +72,11 @@ const ACLListViewer = ({ packageId, suiClient }: ACLListViewerProps) => {
   }, [getCapObj]);
   return (
     <>
+      {cardItems.length === 0 && (
+        <p>No ACLs found for this account.</p>
+      )}
+      <Button onClick={() => setShowCreateACL(true)}>Create new ACL</Button>
+      {showCreateACL && <CreateACL suiClient={suiClient}/>}
       {cardItems.map((item) => (
         <Card key={`${item.cap_id} - ${item.acl_id}`}>
           <p>

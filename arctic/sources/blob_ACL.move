@@ -32,14 +32,13 @@ public struct Cap has key {
 //  2) `initial` is a vector of addresses that will be inserted (with `true`) into the allowlist.
 //  3) At the end, we `share_object(...)` so that ANYONE can read `ac` on‐chain.
 public fun create_access_control(
-    ctx: &mut TxContext,
     service_name: String,
-    allowed_addrs: vector<address>
-): Cap {
+    ctx: &mut TxContext,
+) {
     let ac = AccessControlList {
         id:         object::new(ctx),
         owner:      ctx.sender(),
-        allow_list:  allowed_addrs,
+        allow_list:  vector::empty(),
         service_name: service_name,
     };
     let cap = Cap {
@@ -47,7 +46,7 @@ public fun create_access_control(
         acl_id: object::id(&ac),
     };
     transfer::share_object(ac);
-    cap
+    transfer::transfer(cap, ctx.sender());
 }
 
 public fun add_access(acl: &mut AccessControlList, cap: &Cap, account: address) {
