@@ -1,4 +1,4 @@
-import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { useCurrentAccount, useSignAndExecuteTransaction, useSignPersonalMessage } from "@mysten/dapp-kit";
 import {
   EncryptedObject,
   getAllowlistedKeyServers,
@@ -11,17 +11,16 @@ import type { SuiClient } from "@mysten/sui/client";
 import { SuiGraphQLClient } from "@mysten/sui/graphql";
 import { Transaction } from "@mysten/sui/transactions";
 import { fromHex } from "@mysten/sui/utils";
+import { WalrusClient } from "@mysten/walrus";
+import walrusWasmUrl from "@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url";
+import { Button, Spinner } from "@radix-ui/themes";
 import { set } from "idb-keyval";
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { usePackageId } from "./hooks/usePackageId";
-import type { MoveCallConstructor } from "./utils/utils";
-import { WalrusClient } from "@mysten/walrus";
-import walrusWasmUrl from "@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url";
-import { useSignPersonalMessage } from "@mysten/dapp-kit";
-import { Button, Spinner } from "@radix-ui/themes";
-import { LoginForm } from "./LoginForm";
 import type { Cap } from "./ACLListViewer";
+import { usePackageId } from "./hooks/usePackageId";
+import { LoginForm } from "./LoginForm";
+import type { MoveCallConstructor } from "./utils/utils";
 
 interface ACLItemViewerProps {
   suiClient: SuiClient;
@@ -32,6 +31,7 @@ export interface ACLItemData {
   allowlistName: string;
   blobId: string;
   owner: string;
+  allowlist: string[]
 }
 
 function constructSealApproveCall(
@@ -107,6 +107,7 @@ const { mutateAsync: signAndExecuteTransaction } =
     const feedData = {
       allowlistId: id!,
       allowlistName: fields?.name,
+      allowlist: fields?.allow_list,
       blobId: encryptedObjects[0] || "",
       owner: fields?.owner,
     };
@@ -253,7 +254,7 @@ const { mutateAsync: signAndExecuteTransaction } =
       arguments: [
         tx.object(acl_id),
         tx.object(cap_id),
-        tx.pure.string(address),
+        tx.pure.address(address),
       ],
     });
     tx.setGasBudget(100_000_000);
@@ -267,6 +268,8 @@ const { mutateAsync: signAndExecuteTransaction } =
     });
     if (effects?.status.status === "success") {
       setAddAddressSuccess("Successfully added address to allowlist");
+    } else {
+      setAddAddressSuccess("Failed to add address to allowlist");
     }
   }
 
@@ -302,7 +305,7 @@ const { mutateAsync: signAndExecuteTransaction } =
           <p>Allowlist ID: {data.allowlistId}</p>
           <p>Blob ID: {data.blobId}</p>
           <p>Owner: {data.owner}</p>
-          {data.blobId && (
+          {data.blobId && (data.allowlist.includes(currentAccount?.address) || data.owner === currentAccount.address) && (
             <button
               onClick={() => onView(data.blobId, data.allowlistId)}
               disabled={!walrusClient}
