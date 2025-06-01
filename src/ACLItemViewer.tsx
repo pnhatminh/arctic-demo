@@ -20,6 +20,7 @@ import type { MoveCallConstructor } from "./utils/utils";
 import { WalrusClient } from "@mysten/walrus";
 import walrusWasmUrl from "@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url";
 import { useSignPersonalMessage } from "@mysten/dapp-kit";
+import { Spinner } from "@radix-ui/themes";
 
 interface ACLItemViewerProps {
   suiClient: SuiClient;
@@ -52,6 +53,7 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
   const [error, setError] = useState<string | null>(null);
   const [walrusClient, setWalrusClient] = useState<WalrusClient | null>(null);
   const [decryptedData, setDecryptedData] = useState<Uint8Array | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
 
   const seal = new SealClient({
@@ -75,6 +77,7 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
   }, []);
 
   async function getData() {
+    setIsLoading(true)
     const allowlist = await suiClient.getObject({
       id: id!,
       options: { showContent: true },
@@ -93,6 +96,7 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
       blobId: encryptedObjects[0] || "",
     };
     setData(feedData);
+    setIsLoading(false);
   }
 
   const onView = async (blob_id: string, acl_id: string) => {
@@ -188,7 +192,33 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
     getData();
   }, [id, suiClient, packageId]);
 
-  return <></>;
+  return (
+    <>
+      {!currentAccount && <span>Please connect to wallet to view this shared password</span>}
+      {isLoading && <p><Spinner/>Loading...</p>}
+      {currentAccount && data && (
+        <div>
+          <h2>Allowlist: {data.allowlistName}</h2>
+          <p>Allowlist ID: {data.allowlistId}</p>
+          <p>Blob ID: {data.blobId}</p>
+          {data.blobId && <button
+            onClick={() => onView(data.blobId, data.allowlistId)}
+            disabled={!walrusClient}
+          >
+            View password
+          </button>}
+          {!data.blobId && <p>No password found for this allowlist.</p>}
+          {decryptedData && (
+            <div>
+              <h3>Decrypted Data:</h3>
+              <pre>{new TextDecoder().decode(decryptedData)}</pre>
+            </div>
+          )}
+          {error && <p style={{ color: "red" }}>{error}</p>}
+        </div>
+      )}
+    </>
+  )
 };
 
 export default ACLItemViewer;

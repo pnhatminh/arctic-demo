@@ -4,6 +4,7 @@ import BlobViewer from "./ViewPassword";
 import ACLListViewer from "./ACLListViewer";
 import { getFullnodeUrl, SuiClient } from "@mysten/sui/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import ACLItemViewer from "./ACLItemViewer";
 const BLOB_ACL_PACKAGE_ID = import.meta.env.BLOB_ACL_PACKAGE_ID;
 
 export default function App() {
@@ -24,14 +25,17 @@ export default function App() {
               path="/"
               element={
                 <>
-                  {/* <BlobViewer />
-                  <LoginForm
-                    suiClient={suiClient}
-                    packageId={BLOB_ACL_PACKAGE_ID}
-                    policyIdHex={""}
-                    threshold={0}
-                  /> */}
                   <ACLListViewer
+                    suiClient={suiClient}
+                  />
+                </>
+              }
+            />
+            <Route
+              path="/acl/:id"
+              element={
+                <>
+                  <ACLItemViewer
                     suiClient={suiClient}
                   />
                 </>

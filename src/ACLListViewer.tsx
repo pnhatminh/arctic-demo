@@ -18,7 +18,6 @@ export interface CardItem {
   cap_id: string;
   acl_id: string;
   allow_list: string[];
-  name: string;
 }
 
 const ACLListViewer = ({ suiClient }: ACLListViewerProps) => {
@@ -36,15 +35,16 @@ const ACLListViewer = ({ suiClient }: ACLListViewerProps) => {
         showType: true,
       },
       filter: {
-        StructType: `${packageId}::allowlist::Cap`,
+        StructType: `${packageId}::access_control::Cap`,
       },
     });
+    console.log(res.data)
     const caps = res.data
       .map((obj) => {
         const fields = (obj!.data!.content as { fields: any }).fields;
         return {
           id: fields?.id.id,
-          allowlist_id: fields?.allowlist_id,
+          acl_id: fields?.acl_id,
         };
       })
       .filter((item) => item !== null) as unknown as Cap[];
@@ -60,7 +60,6 @@ const ACLListViewer = ({ suiClient }: ACLListViewerProps) => {
           cap_id: cap.id,
           acl_id: cap.acl_id,
           allow_list: fields.allow_list,
-          name: fields.name,
         };
       })
     );
@@ -80,7 +79,7 @@ const ACLListViewer = ({ suiClient }: ACLListViewerProps) => {
       {cardItems.map((item) => (
         <Card key={`${item.cap_id} - ${item.acl_id}`}>
           <p>
-            {item.name} (ID {item.name})
+            ID {item.acl_id}
           </p>
           <Button
             onClick={() => {
@@ -90,7 +89,7 @@ const ACLListViewer = ({ suiClient }: ACLListViewerProps) => {
               );
             }}
           >
-            Manage
+            View
           </Button>
         </Card>
       ))}
