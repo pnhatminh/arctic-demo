@@ -11,7 +11,6 @@ import walrusWasmUrl from "@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url";
 import React, { useEffect, useState, type FormEvent } from "react";
 import { usePackageId } from "./hooks/usePackageId";
 import { Transaction } from "@mysten/sui/transactions";
-import { Button } from "@radix-ui/themes";
 
 interface LoginFormProps {
   acl_id: string;
@@ -31,7 +30,6 @@ export const LoginForm: React.FC<LoginFormProps> = (
   const [status, setStatus] = useState<string | null>(null);
   const [sealClient, setSealClient] = useState<SealClient | null>(null);
   const [walrusClient, setWalrusClient] = useState<WalrusClient | null>(null);
-  const [showPublish, setShowPublish] = useState(false);
   const currentAccount = useCurrentAccount();
   const { mutateAsync: signTransactionBlock } = useSignTransaction();
   const { mutateAsync: signAndExecuteTransaction } =

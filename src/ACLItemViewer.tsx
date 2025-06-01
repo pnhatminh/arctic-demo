@@ -139,7 +139,7 @@ const ACLItemViewer = ({ suiClient }: ACLItemViewerProps) => {
       console.error("Walrus client is not initialized");
       return;
     }
-    setIsDecrypting(true);
+    // setIsDecrypting(true);
     // const imported: SessionKeyType | undefined = await get("sessionKey");
 
     // if (imported) {

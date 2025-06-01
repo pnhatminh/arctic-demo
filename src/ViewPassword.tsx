@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
 import { WalrusClient } from "@mysten/walrus";
 import walrusWasmUrl from "@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url";
+import { useEffect, useState } from "react";
 
 export default function BlobViewer() {
   const [blobId, setBlobId] = useState("");

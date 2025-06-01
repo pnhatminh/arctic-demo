@@ -1,11 +1,8 @@
 import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
-import { LoginForm } from "./LoginForm";
-import BlobViewer from "./ViewPassword";
-import ACLListViewer from "./ACLListViewer";
 import { getFullnodeUrl, SuiClient } from "@mysten/sui/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import ACLItemViewer from "./ACLItemViewer";
-const BLOB_ACL_PACKAGE_ID = import.meta.env.BLOB_ACL_PACKAGE_ID;
+import ACLListViewer from "./ACLListViewer";
 
 export default function App() {
   const account = useCurrentAccount();

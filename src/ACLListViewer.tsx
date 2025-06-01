@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Button, Card } from '@radix-ui/themes';
 import { usePackageId } from "./hooks/usePackageId";
 import CreateACL from "./CreateACL";
-import { set } from "idb-keyval";
 
 interface ACLListViewerProps {
   suiClient: SuiClient;
