@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Landing from "./Landing";
+import VaultView from "./components/vault/Vault";
 
 export default function App() {
   return (
@@ -12,10 +13,9 @@ export default function App() {
           }
         />
         <Route
-          path="/vault/"
+          path="/vault"
           element={
-            <>
-            </>
+            <VaultView />
           }
         />
       </Routes>
