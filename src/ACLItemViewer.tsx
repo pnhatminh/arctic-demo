@@ -17,10 +17,10 @@ import { Button, Spinner } from "@radix-ui/themes";
 import { set } from "idb-keyval";
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import type { Cap } from "./ACLListViewer";
 import { usePackageId } from "./hooks/usePackageId";
 import { LoginForm } from "./LoginForm";
 import type { MoveCallConstructor } from "./utils/utils";
+import type { Cap } from "./types/Cap";
 
 interface ACLItemViewerProps {
   suiClient: SuiClient;

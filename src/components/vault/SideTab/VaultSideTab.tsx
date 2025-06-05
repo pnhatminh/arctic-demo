@@ -1,5 +1,6 @@
 import { useState } from "react";
 import VaultSideTabItem from "./VaultSideTabItem";
+import { ConnectButton } from "@mysten/dapp-kit";
 
 export type Tabs = "all" | "owned" | "shared" | "favourites";
 
@@ -42,6 +43,7 @@ const VaultSideTab = () => {
           tabType="favourites"
         />
       </ul>
+      <ConnectButton/>
     </div>
   );
 };

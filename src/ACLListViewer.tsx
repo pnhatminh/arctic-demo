@@ -4,14 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Button, Card } from '@radix-ui/themes';
 import { usePackageId } from "./hooks/usePackageId";
 import CreateACL from "./CreateACL";
+import type { Cap } from "./types/Cap";
 
 interface ACLListViewerProps {
   suiClient: SuiClient;
-}
-
-export interface Cap {
-  id: string;
-  acl_id: string;
 }
 
 export interface CardItem {
