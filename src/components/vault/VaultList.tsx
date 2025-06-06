@@ -2,8 +2,8 @@ import { useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
 import { useCallback, useEffect, useState } from "react";
 import { usePackageId } from "../../hooks/usePackageId";
 import type { Cap } from "../../types/Cap";
+import AddCredentials from "./AddCredentials";
 import VaultListItem from "./VaultListItem";
-import { Button } from "@radix-ui/themes";
 
 const VaultList = () => {
   const currentAccount = useCurrentAccount();
@@ -45,7 +45,7 @@ const VaultList = () => {
   return (
     <div>
       <h1>Welcome to the Igloo {currentAccount?.address.slice(0, 6)}</h1>
-      <Button>Create new credentials</Button>
+      <AddCredentials />
       {isLoadingVaultList && <h2>Loading vault...</h2>}
       {!isLoadingVaultList && caps.length ? (
         caps.map((cap) => {

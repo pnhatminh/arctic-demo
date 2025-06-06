@@ -1,33 +1,36 @@
 import { ConnectButton } from "@mysten/dapp-kit";
-import { Button } from "@radix-ui/themes";
 import { useNavigate } from "react-router-dom";
+import { Card } from "./components/ui/card";
+import { Button } from "./components/ui/button";
 
 const Landing = () => {
   const navigate = useNavigate();
   return (
-    <div className="border border-[#e7e7e7] rounded-md px-20 py-5">
+    <Card>
       <h2>Arctic</h2>
       <section className="flex flex-col items-center">
         <h1>Securely manage and share your credentials</h1>
         <p>Built on Sui, encrypted by Seal, stored on Walrus</p>
         <div className="flex flex-row">
-            <ConnectButton />
-            <Button onClick={() => navigate("/vault")}>Enter the Igloo</Button>
+          <ConnectButton />
+          <Button variant="secondary" onClick={() => navigate("/vault")}>
+            Enter the Igloo
+          </Button>
         </div>
-        <img src="/src/assets/img/igloo.png" width={600}/>
+        <img src="/src/assets/img/igloo.png" width={600} />
         <div className="flex w-full">
-            <div>
+          <div>
             <span>End-to-end Encryption</span>
-            </div>
-            <div>
+          </div>
+          <div>
             <span>Decentralize</span>
-            </div>
-            <div>
+          </div>
+          <div>
             <span>Open-source</span>
-            </div>
+          </div>
         </div>
       </section>
-    </div>
+    </Card>
   );
 };
 
