@@ -101,6 +101,7 @@ const AddNewCredentials = ({ getCapObj }: AddNewCredentialsProps) => {
               value={serviceName}
               onChange={(e) => setServiceName(e.target.value)}
             />
+            {errors && <span className="text-destructive">{errors}</span>}
           </div>
         </div>
         <DialogFooter>
