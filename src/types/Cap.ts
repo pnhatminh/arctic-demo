@@ -1,4 +1,5 @@
 export interface Cap {
   id: string;
-  acl_id: string;
+  shared_credentials_id: string;
+  service_name: string;
 }

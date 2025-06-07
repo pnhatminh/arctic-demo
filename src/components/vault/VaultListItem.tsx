@@ -1,12 +1,18 @@
 interface VaultListItemProps {
   cap_id: string;
-  acl_id: string;
+  shared_credentials_id: string;
+  service_name: string;
 }
-const VaultListItem = ({ cap_id, acl_id }: VaultListItemProps) => {
+const VaultListItem = ({
+  cap_id,
+  shared_credentials_id,
+  service_name,
+}: VaultListItemProps) => {
   return (
     <div>
       <span>
-        ID {cap_id} ACL ID {acl_id}
+        ID {cap_id} Credentials ID {shared_credentials_id} Service Name{" "}
+        {service_name}
       </span>
     </div>
   );

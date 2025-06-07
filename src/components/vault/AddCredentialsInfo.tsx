@@ -12,8 +12,13 @@ import {
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 
-const AddCredentials = () => {
-  const onSubmit = () => {};
+interface AddCredentialsInfo {
+  credential_id: string;
+}
+const AddCredentialsInfo = ({ credential_id }: AddCredentialsInfo) => {
+  const onSubmit = () => {
+    console.log(`add credentials info to ${credential_id}`);
+  };
   return (
     <Dialog>
       <form onSubmit={onSubmit}>
@@ -24,15 +29,10 @@ const AddCredentials = () => {
           <DialogHeader>
             <DialogTitle>Add new credentials</DialogTitle>
             <DialogDescription>
-              Make changes to your profile here. Click save when you&apos;re
-              done.
+              Update your credentials info here.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            <div className="grid gap-3">
-              <Label htmlFor="name-1">Name</Label>
-              <Input id="name-1" name="name" placeholder="Netflix" />
-            </div>
             <div className="grid gap-3">
               <Label htmlFor="username-1">Username</Label>
               <Input id="username-1" name="username" placeholder="John Doe" />
@@ -59,4 +59,4 @@ const AddCredentials = () => {
   );
 };
 
-export default AddCredentials;
+export default AddCredentialsInfo;

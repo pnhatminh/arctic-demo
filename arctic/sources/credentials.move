@@ -1,4 +1,4 @@
-module arctic::access_control;
+module arctic::credentials;
 use std::string::String;
 use sui::dynamic_field as df;
 use sui::table;
@@ -32,7 +32,7 @@ public struct SharedCredential has key {
 
 public struct Cap has key {
     id: UID,
-    acl_id: ID,
+    shared_credentials_id: ID,
     owner: address,
     service_name: String,
 }
@@ -49,7 +49,7 @@ public fun create_credentials(
     let mut allow_list = table::new<address, AccessType>(ctx);
     table::add(&mut allow_list, ctx.sender(), AccessType::Owner);
 
-    let sharedCredential = SharedCredential {
+    let shared_credential = SharedCredential {
         id:         object::new(ctx),
         allow_list:  allow_list,
         service_name: service_name,
@@ -57,59 +57,59 @@ public fun create_credentials(
 
     let cap = Cap {
         id: object::new(ctx),
-        acl_id: object::id(&sharedCredential),
+        shared_credentials_id: object::id(&shared_credential),
         service_name: service_name,
         owner:      ctx.sender(),
     };
-    transfer::share_object(sharedCredential);
+    transfer::share_object(shared_credential);
     transfer::transfer(cap, ctx.sender());
 }
 
-public fun add_access(sharedCredential: &mut SharedCredential, cap: &Cap, newAccessibleAccount: address, permission: AccessType, ctx: &mut TxContext) {
-    let allow_list = &sharedCredential.allow_list;
+public fun add_access(shared_credential: &mut SharedCredential, cap: &Cap, new_accessible_account: address, permission: AccessType, ctx: &mut TxContext) {
+    let allow_list = &shared_credential.allow_list;
     let sender_access = table::borrow(allow_list, ctx.sender());
 
-    assert!(cap.acl_id == object::id(sharedCredential), EInvalidCap);
+    assert!(cap.shared_credentials_id == object::id(shared_credential), EInvalidCap);
     assert!(sender_access == AccessType::ReadWrite || sender_access == AccessType::Owner, ENotAuthorized);
-    assert!(!sharedCredential.allow_list.contains(newAccessibleAccount), EDuplicate);
+    assert!(!shared_credential.allow_list.contains(new_accessible_account), EDuplicate);
 
-    table::add(&mut sharedCredential.allow_list, newAccessibleAccount, permission);
+    table::add(&mut shared_credential.allow_list, new_accessible_account, permission);
     let newCap = Cap {
         id: object::new(ctx),
-        acl_id: object::id(sharedCredential),
+        shared_credentials_id: object::id(shared_credential),
         service_name: cap.service_name,
         owner:      ctx.sender(),
     };
-    transfer::transfer(newCap, newAccessibleAccount);
+    transfer::transfer(newCap, new_accessible_account);
 }
 
-public fun namespace(sharedCredential: &SharedCredential): vector<u8> {
-    sharedCredential.id.to_bytes()
+public fun namespace(shared_credential: &SharedCredential): vector<u8> {
+    shared_credential.id.to_bytes()
 }
 
-public fun has_access(sharedCredential: &SharedCredential, acl_id: vector<u8>, caller: address): bool {
-    let namespace = namespace(sharedCredential);
-    if (!is_prefix(namespace, acl_id)) {
+public fun has_access(shared_credential: &SharedCredential, shared_credentials_id: vector<u8>, caller: address): bool {
+    let namespace = namespace(shared_credential);
+    if (!is_prefix(namespace, shared_credentials_id)) {
         return false
     };
 
-    sharedCredential.allow_list.contains(caller)
+    shared_credential.allow_list.contains(caller)
 }
 
-public fun publish_blob_id(sharedCredential: &mut SharedCredential, cap: &Cap, blob_id: String, ctx: &mut TxContext) {
-    let allow_list = &sharedCredential.allow_list;
+public fun publish_blob_id(shared_credential: &mut SharedCredential, cap: &Cap, blob_id: String, ctx: &mut TxContext) {
+    let allow_list = &shared_credential.allow_list;
     let sender_access = table::borrow(allow_list, ctx.sender());
 
-    assert!(cap.acl_id == object::id(sharedCredential), EInvalidCap);
+    assert!(cap.shared_credentials_id == object::id(shared_credential), EInvalidCap);
     assert!(sender_access == AccessType::ReadWrite || sender_access == AccessType::Owner, ENotAuthorized);
 
-    df::add(&mut sharedCredential.id, blob_id, MARKER);
+    df::add(&mut shared_credential.id, blob_id, MARKER);
 }
 
 entry fun seal_approve(
-    acl_id: vector<u8>,
-    acl: &SharedCredential,
+    shared_credentials_id: vector<u8>,
+    shared_credentials: &SharedCredential,
     ctx: &TxContext,
 ) {
-    assert!(has_access(acl, acl_id, ctx.sender()), ENoAccess);
+    assert!(has_access(shared_credentials, shared_credentials_id, ctx.sender()), ENoAccess);
 }
