@@ -18,7 +18,10 @@ const VaultSideTabItem = ({
   return (
     <li
       onClick={() => onClick(tabType)}
-      className={clsx(isActive && "bg-primary", "h-8 w-80 cursor-pointer")}
+      className={clsx(
+        isActive && "bg-primary text-secondary",
+        "h-8 w-80 cursor-pointer rounded-md p-1",
+      )}
     >
       <img src={icon} />
       <span>{title}</span>

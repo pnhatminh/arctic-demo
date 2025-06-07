@@ -82,7 +82,7 @@ const AddNewCredentials = ({ getCapObj }: AddNewCredentialsProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Add new credentials</Button>
+        <Button variant="default">Add new credentials</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

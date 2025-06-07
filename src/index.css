@@ -76,7 +76,6 @@ h1 {
 button {
     border-radius: 8px;
     border: 1px solid transparent;
-    padding: 0.6em 1.2em;
     font-size: 1em;
     font-weight: 500;
     font-family: inherit;
@@ -170,4 +169,8 @@ button:focus-visible {
     body {
         @apply bg-background text-foreground;
     }
+}
+
+body[data-scroll-locked] {
+    padding: 40px 40px !important;
 }

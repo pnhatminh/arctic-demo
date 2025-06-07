@@ -11,7 +11,7 @@ const VaultSideTab = () => {
     setCurrentActiveTab(tab);
   };
   return (
-    <div className="p-4">
+    <div className="">
       <h1>Arctic</h1>
       <ul>
         <VaultSideTabItem
@@ -43,7 +43,7 @@ const VaultSideTab = () => {
           tabType="favourites"
         />
       </ul>
-      <ConnectButton/>
+      <ConnectButton />
     </div>
   );
 };
