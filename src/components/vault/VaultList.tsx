@@ -17,6 +17,9 @@ import {
 import { Button } from "../ui/button";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Label } from "../ui/label";
+import CredentialsModal from "./CredentialsModal";
+import type { CredentialsModalType } from "@/types/CredentialsModalType";
+import { useCredentialsStore } from "@/store/useCredentialsStore";
 
 type SearchByType = "id" | "name";
 
@@ -27,6 +30,10 @@ const VaultList = () => {
   const [searchBy, setSearchBy] = useState<SearchByType>("id");
   const suiClient = useSuiClient();
   const { packageId, packageName } = usePackageInfo();
+  const [credentialsModalType, setCredentialsModalType] =
+    useState<CredentialsModalType>("view");
+  const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
+  const { setCredentialsId, setCredentialsName } = useCredentialsStore();
 
   const getCapObj = useCallback(async () => {
     if (!currentAccount?.address) return;
@@ -57,6 +64,17 @@ const VaultList = () => {
     setIsLoadingVaultList(false);
   }, [currentAccount?.address, packageId, packageName, suiClient]);
 
+  const onActionClick = (
+    type: CredentialsModalType,
+    id: string,
+    name: string,
+  ) => {
+    setCredentialsModalType(type);
+    setCredentialsId(id);
+    setCredentialsName(name);
+    setIsCredentialsModalOpen(true);
+  };
+
   const vaultColumns: ColumnDef<Cap>[] = [
     {
       accessorKey: "id",
@@ -83,7 +101,7 @@ const VaultList = () => {
     {
       id: "actions",
       cell: ({ row }) => {
-        const payment = row.original;
+        const credentials = row.original;
 
         return (
           <DropdownMenu>
@@ -94,13 +112,39 @@ const VaultList = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(payment.id)}
+                onClick={() => {
+                  onActionClick(
+                    "view",
+                    credentials.shared_credentials_id,
+                    credentials.service_name,
+                  );
+                }}
               >
                 View credentials
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Update credentials</DropdownMenuItem>
-              <DropdownMenuItem>Add permission</DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  onActionClick(
+                    "edit",
+                    credentials.shared_credentials_id,
+                    credentials.service_name,
+                  );
+                }}
+              >
+                Update credentials
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  onActionClick(
+                    "edit_permission",
+                    credentials.shared_credentials_id,
+                    credentials.service_name,
+                  );
+                }}
+              >
+                Add permission
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         );
@@ -111,10 +155,6 @@ const VaultList = () => {
   useEffect(() => {
     getCapObj();
   }, [getCapObj]);
-
-  useEffect(() => {
-    console.log(caps);
-  }, [caps]);
 
   return (
     <div className="flex flex-col w-full gap-4">
@@ -139,6 +179,12 @@ const VaultList = () => {
         </div>
         <AddNewCredentials getCapObj={getCapObj} />
       </div>
+      <CredentialsModal
+        type={credentialsModalType}
+        setType={setCredentialsModalType}
+        isOpen={isCredentialsModalOpen}
+        setOpen={setIsCredentialsModalOpen}
+      />
       {isLoadingVaultList && <h2>Loading vault...</h2>}
       {!isLoadingVaultList &&
         (caps.length ? (
