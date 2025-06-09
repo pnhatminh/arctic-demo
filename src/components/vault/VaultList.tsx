@@ -33,7 +33,8 @@ const VaultList = () => {
   const [credentialsModalType, setCredentialsModalType] =
     useState<CredentialsModalType>("view");
   const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
-  const { setCredentialsId, setCredentialsName } = useCredentialsStore();
+  const { setCredentialsId, setCredentialsName, setCapId } =
+    useCredentialsStore();
 
   const getCapObj = useCallback(async () => {
     if (!currentAccount?.address) return;
@@ -68,10 +69,12 @@ const VaultList = () => {
     type: CredentialsModalType,
     id: string,
     name: string,
+    cap_id: string,
   ) => {
     setCredentialsModalType(type);
     setCredentialsId(id);
     setCredentialsName(name);
+    setCapId(cap_id);
     setIsCredentialsModalOpen(true);
   };
 
@@ -117,6 +120,7 @@ const VaultList = () => {
                     "view",
                     credentials.shared_credentials_id,
                     credentials.service_name,
+                    credentials.id,
                   );
                 }}
               >
@@ -129,6 +133,7 @@ const VaultList = () => {
                     "edit",
                     credentials.shared_credentials_id,
                     credentials.service_name,
+                    credentials.id,
                   );
                 }}
               >
@@ -140,6 +145,7 @@ const VaultList = () => {
                     "edit_permission",
                     credentials.shared_credentials_id,
                     credentials.service_name,
+                    credentials.id,
                   );
                 }}
               >
