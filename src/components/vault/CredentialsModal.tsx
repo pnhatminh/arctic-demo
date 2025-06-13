@@ -44,7 +44,9 @@ const CredentialsModal = ({
       })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((res: { data: any[] }) =>
-        res.data.map((obj) => obj.name.value as string),
+        res.data
+          .sort((x, y) => parseInt(y.version) - parseInt(x.version))
+          .map((obj) => obj.name.value as string),
       );
 
     const fields =
@@ -71,7 +73,7 @@ const CredentialsModal = ({
         <ViewCredentialsTab />
       </TabsContent>
       <TabsContent value="edit">
-        <UpdateCredentialsTab />
+        <UpdateCredentialsTab reloadCredentials={getCredentialsObject} />
       </TabsContent>
       <TabsContent value="edit_permission">
         <UpdatePermissionTab />

@@ -1,28 +1,37 @@
 import { usePackageInfo } from "@/hooks/usePackageInfo";
-import { UseWalrusServices } from "@/hooks/useWalrusServices";
 import { useCredentialsStore } from "@/store/useCredentialsStore";
-import { useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
+import {
+  useCurrentAccount,
+  useSignAndExecuteTransaction,
+  useSuiClient,
+} from "@mysten/dapp-kit";
 import { getAllowlistedKeyServers, SealClient } from "@mysten/seal";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { WalrusClient } from "@mysten/walrus";
+import walrusWasmUrl from "@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url";
 import { Transaction } from "@mysten/sui/transactions";
+import { toast } from "sonner";
 
-const UpdateCredentialsTab = () => {
-  const NUM_EPOCH = 1;
+interface UpdateCredentialsTabProps {
+  reloadCredentials: () => void;
+}
+const UpdateCredentialsTab = ({
+  reloadCredentials,
+}: UpdateCredentialsTabProps) => {
+  const currentAccount = useCurrentAccount();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [sealClient, setSealClient] = useState<SealClient | null>(null);
+  const [walrusClient, setWalrusClient] = useState<WalrusClient | null>(null);
   const suiClient = useSuiClient();
-  const sealClient = new SealClient({
-    suiClient,
-    serverObjectIds: getAllowlistedKeyServers("testnet").map(
-      (id) => [id, 1] as [string, number],
-    ),
-    verifyKeyServers: false,
-  });
+
   const { credentials_id, cap_id } = useCredentialsStore();
   const [status, setStatus] = useState<string | null>(null);
+  const { mutateAsync: signAndExecuteTransaction } =
+    useSignAndExecuteTransaction();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction({
     execute: async ({ bytes, signature }) =>
       await suiClient.executeTransactionBlock({
@@ -35,35 +44,122 @@ const UpdateCredentialsTab = () => {
       }),
   });
   const { packageId, packageName } = usePackageInfo();
-  const { getPublisherUrl } = UseWalrusServices();
 
-  const storeBlob = async (encryptedData: Uint8Array) => {
-    const response = await fetch(
-      `${getPublisherUrl("service1", `/v1/blobs?epochs=${NUM_EPOCH}`)}`,
-      {
-        method: "PUT",
-        body: encryptedData,
+  useEffect(() => {
+    const sealClient = new SealClient({
+      suiClient,
+      serverObjectIds: getAllowlistedKeyServers("testnet").map(
+        (id) => [id, 1] as [string, number],
+      ),
+      verifyKeyServers: false,
+    });
+    const walrusClient = new WalrusClient({
+      network: "testnet",
+      suiRpcUrl: "https://fullnode.testnet.sui.io",
+      wasmUrl: walrusWasmUrl,
+      storageNodeClientOptions: {
+        timeout: 60_000,
       },
-    );
-    if (response.status === 200) {
-      return response.json().then((info) => {
-        return { info };
-      });
-    } else {
-      setStatus("Failed to upload to blob. Please try again");
-      throw new Error("Something went wrong when storing the blob!");
+    });
+    setSealClient(sealClient);
+    setWalrusClient(walrusClient);
+  }, [suiClient]);
+
+  const writeFromWallet = async (file: Uint8Array<ArrayBufferLike>) => {
+    if (!walrusClient) {
+      setStatus("Failed to setup walrus client");
+      return;
     }
+    const encoded = await walrusClient.encodeBlob(file);
+
+    const registerBlobTransaction = walrusClient.registerBlobTransaction({
+      blobId: encoded.blobId,
+      rootHash: encoded.rootHash,
+      size: file.length,
+      epochs: 1,
+      deletable: true,
+      owner: currentAccount!.address,
+    });
+    registerBlobTransaction.setGasBudget(100_000_000);
+    registerBlobTransaction.setSender(currentAccount!.address);
+    const { digest } = await signAndExecuteTransaction({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      transaction: registerBlobTransaction as any,
+    });
+
+    const { objectChanges, effects } = await suiClient.waitForTransaction({
+      digest,
+      options: { showObjectChanges: true, showEffects: true },
+    });
+
+    if (effects?.status.status !== "success") {
+      console.error("Transaction failed:", effects?.status.error);
+      throw new Error(`Failed to register blob: ${effects?.status.error}`);
+    }
+
+    const blobType = await walrusClient.getBlobType();
+
+    const blobObject = objectChanges?.find(
+      (change) => change.type === "created" && change.objectType === blobType,
+    );
+
+    if (!blobObject || blobObject.type !== "created") {
+      throw new Error("Blob object not found");
+    }
+
+    const confirmations = await walrusClient.writeEncodedBlobToNodes({
+      blobId: encoded.blobId,
+      metadata: encoded.metadata,
+      sliversByNode: encoded.sliversByNode,
+      deletable: true,
+      objectId: blobObject.objectId,
+    });
+
+    console.log("Confirmations:", confirmations);
+
+    const certifyBlobTransaction = walrusClient.certifyBlobTransaction({
+      blobId: encoded.blobId,
+      blobObjectId: blobObject.objectId,
+      confirmations,
+      deletable: true,
+    });
+    certifyBlobTransaction.setGasBudget(100_000_000);
+    certifyBlobTransaction.setSender(currentAccount!.address);
+
+    const { digest: certifyDigest } = await signAndExecuteTransaction({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      transaction: certifyBlobTransaction as any,
+    });
+
+    const { effects: certifyEffects } = await suiClient.waitForTransaction({
+      digest: certifyDigest,
+      options: { showEffects: true },
+    });
+
+    if (certifyEffects?.status.status !== "success") {
+      console.error("Certification failed:", certifyEffects?.status.error);
+      throw new Error(
+        `Failed to certify blob: ${certifyEffects?.status.error}`,
+      );
+    }
+    return encoded.blobId;
   };
 
-  const handlePublish = async (blobId: string | null) => {
-    if (!credentials_id || !cap_id || !blobId) return;
+  async function handlePublish(blob_id: string) {
+    if (!credentials_id || !cap_id) {
+      setStatus("Failed to publish the blobID");
+      console.error(
+        `CredentialsID ${credentials_id} or CapID ${cap_id} was invalid`,
+      );
+      return;
+    }
     const tx = new Transaction();
     tx.moveCall({
-      target: `${packageId}::${packageName}::publish`,
+      target: `${packageId}::${packageName}::publish_blob_id`,
       arguments: [
         tx.object(credentials_id),
         tx.object(cap_id),
-        tx.pure.string(blobId),
+        tx.pure.string(blob_id),
       ],
     });
 
@@ -75,20 +171,16 @@ const UpdateCredentialsTab = () => {
       {
         onSuccess: async (result) => {
           console.log("res", result);
-          setStatus(
+          alert(
             "Blob attached successfully, now share the link or upload more.",
           );
         },
-        onError: async (error) => {
-          console.error("error: ", error);
-          setStatus("Failed to attach blob. Please try again");
-        },
       },
     );
-  };
+  }
 
   const onSave = async () => {
-    if (!credentials_id) return;
+    if (!credentials_id || !sealClient) return;
     setStatus("Encrypting the credentials ...");
     const plainJSON = JSON.stringify({ username, password });
     const encoder = new TextEncoder();
@@ -101,17 +193,23 @@ const UpdateCredentialsTab = () => {
       data: plainBytes,
     });
     setStatus("Uploading the encrypted credentials ...");
-    setStatus("Finalizing...");
-    const storageInfo = await storeBlob(encryptedObject);
-    let blobId: string | null = null;
-    if ("alreadyCertified" in storageInfo) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      blobId = (storageInfo.alreadyCertified as any).blobId;
-    } else if ("newlyCreated" in storageInfo) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      blobId = (storageInfo.newlyCreated as any).blobId;
+    let blobId = null;
+    try {
+      blobId = await writeFromWallet(encryptedObject);
+    } catch (err) {
+      setStatus("Failed to upload blob");
+      console.error("Failed to write to walrus", err);
+      return;
     }
+    if (!blobId) {
+      setStatus("Failed to upload blob");
+      console.error("BlobID doesn't exist");
+      return;
+    }
+    setStatus("Finalizing...");
     await handlePublish(blobId);
+    toast("Successfully updated the credentials info.");
+    reloadCredentials();
   };
 
   return (
